@@ -186,7 +186,6 @@ def get_legal_moves(state):
     
 # the following function will allow the player to apply moves to the board
 
-
 def apply_move(state, move):
 
     # apply a move to the board, and return a NEW gamestate object
@@ -203,11 +202,13 @@ def apply_move(state, move):
     player = state.current_player #this selectes the current player
 
     start_row, start_col = move[0] # the starting square of the piece
-    end_row, end_col = move[-1] # the final destination (after a jump or a simple move)
-
     piece = board[start_row][start_col] #identify the moving piece 
 
     board[start_row][start_col] = EMPTY #remove the piece fom its starting square
+
+
+    # flag for immediate king promotion (regicide)
+    regicide_trigger = False
 
 
     #process all segments of the move
@@ -217,34 +218,64 @@ def apply_move(state, move):
         row1, col1 = move[i] # current position
         row2, col2 = move[i + 1] # next position
 
-        # if its a jump (difference of 2 rows), then a capture happened
+        # if it's a jump (difference of 2 rows), then a capture happened
 
-        if abs(row2- row1) == 2: #jumps always move 2 squares 
+        if abs(row2 - row1) == 2: # jumps always move 2 squares 
             middle_row = (row1 + row2) // 2 #middle square row (piece being captured) 
             middle_col = (col1 + col2) // 2 #middle square column for piece being captured
 
+            captured_piece = board[middle_row][middle_col]
+
             board[middle_row][middle_col] = EMPTY # remove the captured opponent piece
 
-    board[end_row][end_col] = piece # place the moving piece in its final square
 
-    if piece == BLACK_PAWN and end_row == 7: #black pawn reaches the king row
-
-        piece = BLACK_KING #promote to king
-        board[end_row][end_col] = piece # update the board
-
-    if piece == WHITE_PAWN and end_row == 0: # the white pawn has reached the king row
-        piece = WHITE_KING # promote the pawn to a king
-        board[end_row][end_col] = piece # update the board 
+            # this is the regicide rule's logic, where if a pawn captures a king --> becomes king immediately
+            if captured_piece in (BLACK_KING, WHITE_KING):
+                if piece in (BLACK_PAWN, WHITE_PAWN):
+                    regicide_trigger = True 
 
 
-    next_player = WHITE if player == BLACK else BLACK # this switches the active player
+        # move the piece to the next square in the sequence
 
-    #this will return the new GameState object, in order to progress the game \
+        board[row2][col2] = piece
+        board[row1][col1] = EMPTY
+
+        # if a regicide has happened, no further jumps are allowed
+        if regicide_trigger:
+            break
+
+
+    # at this point the move path is finished (or stopped early because of regicide)
+    final_row, final_col = move[i + 1]
+
+
+    # if a pawn captured a king --> promote instantly
+    if regicide_trigger:
+
+        print("REGICIDE ACTIVATED!")
+        
+        if piece == BLACK_PAWN:
+            piece = BLACK_KING
+
+        elif piece == WHITE_PAWN:
+            piece = WHITE_KING
+
+        board[final_row][final_col] = piece
+
+
+    else:
+        # normal end-of-turn promotion (the back row)
+        if piece == BLACK_PAWN and final_row == 7:
+            piece = BLACK_KING
+
+        elif piece == WHITE_PAWN and final_row == 0:
+            piece = WHITE_KING
+
+        board[final_row][final_col] = piece
+
+
+    # switch the active player
+    next_player = WHITE if player == BLACK else BLACK
+
+    # return the new GameState object, to progress the game
     return gamestate(board, next_player)
-
-
-
-
-
-
-
